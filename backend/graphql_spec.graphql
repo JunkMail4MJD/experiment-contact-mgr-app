@@ -1,0 +1,306 @@
+# Contact Management GraphQL Schema
+
+scalar DateTime
+scalar UUID
+
+# Core Contact type
+type Contact {
+  id: UUID!
+  firstName: String!
+  lastName: String!
+  email: String!
+  phoneNumber: String
+  address: Address
+  company: String
+  jobTitle: String
+  tags: [String!]!
+  notes: String
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+# Address embedded type
+type Address {
+  street: String
+  city: String
+  state: String
+  postalCode: String
+  country: String
+}
+
+# Input types for mutations
+input ContactInput {
+  firstName: String!
+  lastName: String!
+  email: String!
+  phoneNumber: String
+  address: AddressInput
+  company: String
+  jobTitle: String
+  tags: [String!]
+  notes: String
+}
+
+input AddressInput {
+  street: String
+  city: String
+  state: String
+  postalCode: String
+  country: String
+}
+
+input ContactUpdateInput {
+  firstName: String
+  lastName: String
+  email: String
+  phoneNumber: String
+  address: AddressInput
+  company: String
+  jobTitle: String
+  tags: [String!]
+  notes: String
+}
+
+# Pagination types
+type ContactConnection {
+  edges: [ContactEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type ContactEdge {
+  node: Contact!
+  cursor: String!
+}
+
+type PageInfo {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+}
+
+# Filter input for queries
+input ContactFilter {
+  search: String
+  tags: [String!]
+  company: String
+  hasPhoneNumber: Boolean
+  hasAddress: Boolean
+}
+
+# Sort options
+enum ContactSortField {
+  FIRST_NAME
+  LAST_NAME
+  EMAIL
+  COMPANY
+  CREATED_AT
+  UPDATED_AT
+}
+
+enum SortOrder {
+  ASC
+  DESC
+}
+
+input ContactSort {
+  field: ContactSortField!
+  order: SortOrder!
+}
+
+# Bulk operation results
+type BulkContactResult {
+  successCount: Int!
+  errorCount: Int!
+  contacts: [Contact!]!
+  errors: [BulkError!]!
+}
+
+type BulkError {
+  index: Int!
+  message: String!
+  code: String!
+}
+
+# Root Query type
+type Query {
+  # Get a single contact by ID
+  contact(id: UUID!): Contact
+  
+  # Get multiple contacts with filtering, sorting, and pagination
+  contacts(
+    filter: ContactFilter
+    sort: ContactSort
+    first: Int = 20
+    after: String
+    last: Int
+    before: String
+  ): ContactConnection!
+  
+  # Search contacts with a simple text query
+  searchContacts(
+    query: String!
+    first: Int = 20
+    after: String
+  ): ContactConnection!
+  
+  # Get contacts by tag
+  contactsByTag(
+    tag: String!
+    first: Int = 20
+    after: String
+  ): ContactConnection!
+  
+  # Get all unique tags used across contacts
+  allTags: [String!]!
+  
+  # Get contact statistics
+  contactStats: ContactStats!
+}
+
+type ContactStats {
+  totalContacts: Int!
+  contactsWithPhoneNumbers: Int!
+  contactsWithAddresses: Int!
+  contactsWithCompanies: Int!
+  topCompanies: [CompanyCount!]!
+  topTags: [TagCount!]!
+}
+
+type CompanyCount {
+  company: String!
+  count: Int!
+}
+
+type TagCount {
+  tag: String!
+  count: Int!
+}
+
+# Root Mutation type
+type Mutation {
+  # Create a new contact
+  createContact(input: ContactInput!): ContactMutationResult!
+  
+  # Update an existing contact
+  updateContact(
+    id: UUID!
+    input: ContactUpdateInput!
+  ): ContactMutationResult!
+  
+  # Delete a contact
+  deleteContact(id: UUID!): DeleteContactResult!
+  
+  # Bulk create contacts
+  bulkCreateContacts(
+    contacts: [ContactInput!]!
+  ): BulkContactResult!
+  
+  # Bulk update contacts
+  bulkUpdateContacts(
+    updates: [ContactBulkUpdate!]!
+  ): BulkContactResult!
+  
+  # Bulk delete contacts
+  bulkDeleteContacts(
+    ids: [UUID!]!
+  ): BulkDeleteResult!
+  
+  # Add tags to a contact
+  addTagsToContact(
+    id: UUID!
+    tags: [String!]!
+  ): ContactMutationResult!
+  
+  # Remove tags from a contact
+  removeTagsFromContact(
+    id: UUID!
+    tags: [String!]!
+  ): ContactMutationResult!
+}
+
+# Mutation result types
+interface MutationResult {
+  success: Boolean!
+  message: String
+  errors: [MutationError!]!
+}
+
+type ContactMutationResult implements MutationResult {
+  success: Boolean!
+  message: String
+  errors: [MutationError!]!
+  contact: Contact
+}
+
+type DeleteContactResult implements MutationResult {
+  success: Boolean!
+  message: String
+  errors: [MutationError!]!
+  deletedId: UUID
+}
+
+type BulkDeleteResult {
+  successCount: Int!
+  errorCount: Int!
+  deletedIds: [UUID!]!
+  errors: [BulkError!]!
+}
+
+input ContactBulkUpdate {
+  id: UUID!
+  input: ContactUpdateInput!
+}
+
+type MutationError {
+  field: String
+  message: String!
+  code: String!
+}
+
+# Root Subscription type for real-time updates
+type Subscription {
+  # Subscribe to contact changes
+  contactUpdated(id: UUID): ContactUpdateEvent!
+  
+  # Subscribe to contact creation
+  contactCreated: Contact!
+  
+  # Subscribe to contact deletion
+  contactDeleted: ContactDeletedEvent!
+  
+  # Subscribe to all contact events
+  contactEvents: ContactEvent!
+}
+
+type ContactUpdateEvent {
+  contact: Contact!
+  previousValues: ContactUpdatePayload
+}
+
+type ContactDeletedEvent {
+  id: UUID!
+  deletedAt: DateTime!
+}
+
+type ContactUpdatePayload {
+  firstName: String
+  lastName: String
+  email: String
+  phoneNumber: String
+  address: Address
+  company: String
+  jobTitle: String
+  tags: [String!]
+  notes: String
+}
+
+union ContactEvent = Contact | ContactUpdateEvent | ContactDeletedEvent
+
+# Schema definition
+schema {
+  query: Query
+  mutation: Mutation
+  subscription: Subscription
+}

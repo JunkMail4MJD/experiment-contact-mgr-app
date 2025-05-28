@@ -1,0 +1,309 @@
+// contact_service.proto
+// Protocol Buffers definition for Contact Management gRPC API
+
+syntax = "proto3";
+
+package contactmanager.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/field_mask.proto";
+
+option go_package = "github.com/contactmanager/api/v1;contactmanagerv1";
+option java_package = "com.contactmanager.api.v1";
+option java_multiple_files = true;
+option java_outer_classname = "ContactServiceProto";
+
+// Contact Management Service Definition
+service ContactService {
+  // Get a single contact by ID
+  rpc GetContact(GetContactRequest) returns (Contact);
+  
+  // List contacts with filtering and pagination
+  rpc ListContacts(ListContactsRequest) returns (ListContactsResponse);
+  
+  // Search contacts by query
+  rpc SearchContacts(SearchContactsRequest) returns (ListContactsResponse);
+  
+  // Create a new contact
+  rpc CreateContact(CreateContactRequest) returns (Contact);
+  
+  // Update an existing contact
+  rpc UpdateContact(UpdateContactRequest) returns (Contact);
+  
+  // Delete a contact
+  rpc DeleteContact(DeleteContactRequest) returns (google.protobuf.Empty);
+  
+  // Bulk create contacts
+  rpc BulkCreateContacts(BulkCreateContactsRequest) returns (BulkCreateContactsResponse);
+  
+  // Bulk update contacts
+  rpc BulkUpdateContacts(BulkUpdateContactsRequest) returns (BulkUpdateContactsResponse);
+  
+  // Bulk delete contacts
+  rpc BulkDeleteContacts(BulkDeleteContactsRequest) returns (BulkDeleteContactsResponse);
+  
+  // Get contact statistics
+  rpc GetContactStats(google.protobuf.Empty) returns (ContactStats);
+  
+  // Get all tags
+  rpc GetAllTags(google.protobuf.Empty) returns (GetAllTagsResponse);
+  
+  // Server streaming: Watch contact changes
+  rpc WatchContacts(WatchContactsRequest) returns (stream ContactEvent);
+  
+  // Client streaming: Batch import contacts
+  rpc ImportContacts(stream ImportContactRequest) returns (ImportContactsResponse);
+}
+
+// Core Contact message
+message Contact {
+  string id = 1;
+  string first_name = 2;
+  string last_name = 3;
+  string email = 4;
+  optional string phone_number = 5;
+  optional Address address = 6;
+  optional string company = 7;
+  optional string job_title = 8;
+  repeated string tags = 9;
+  optional string notes = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+}
+
+// Address embedded message
+message Address {
+  optional string street = 1;
+  optional string city = 2;
+  optional string state = 3;
+  optional string postal_code = 4;
+  optional string country = 5;
+}
+
+// Request/Response messages for single contact operations
+message GetContactRequest {
+  string id = 1;
+}
+
+message CreateContactRequest {
+  string first_name = 1;
+  string last_name = 2;
+  string email = 3;
+  optional string phone_number = 4;
+  optional Address address = 5;
+  optional string company = 6;
+  optional string job_title = 7;
+  repeated string tags = 8;
+  optional string notes = 9;
+}
+
+message UpdateContactRequest {
+  string id = 1;
+  optional string first_name = 2;
+  optional string last_name = 3;
+  optional string email = 4;
+  optional string phone_number = 5;
+  optional Address address = 6;
+  optional string company = 7;
+  optional string job_title = 8;
+  repeated string tags = 9;
+  optional string notes = 10;
+  google.protobuf.FieldMask update_mask = 11;
+}
+
+message DeleteContactRequest {
+  string id = 1;
+}
+
+// List contacts request with filtering and pagination
+message ListContactsRequest {
+  // Pagination
+  int32 page_size = 1;
+  string page_token = 2;
+  
+  // Filtering
+  optional ContactFilter filter = 3;
+  
+  // Sorting
+  repeated ContactSort sort = 4;
+}
+
+message ListContactsResponse {
+  repeated Contact contacts = 1;
+  string next_page_token = 2;
+  int32 total_count = 3;
+}
+
+message ContactFilter {
+  optional string search = 1;
+  repeated string tags = 2;
+  optional string company = 3;
+  optional bool has_phone_number = 4;
+  optional bool has_address = 5;
+  optional string email_domain = 6;
+}
+
+message ContactSort {
+  ContactSortField field = 1;
+  SortOrder order = 2;
+}
+
+enum ContactSortField {
+  CONTACT_SORT_FIELD_UNSPECIFIED = 0;
+  CONTACT_SORT_FIELD_FIRST_NAME = 1;
+  CONTACT_SORT_FIELD_LAST_NAME = 2;
+  CONTACT_SORT_FIELD_EMAIL = 3;
+  CONTACT_SORT_FIELD_COMPANY = 4;
+  CONTACT_SORT_FIELD_CREATED_AT = 5;
+  CONTACT_SORT_FIELD_UPDATED_AT = 6;
+}
+
+enum SortOrder {
+  SORT_ORDER_UNSPECIFIED = 0;
+  SORT_ORDER_ASC = 1;
+  SORT_ORDER_DESC = 2;
+}
+
+// Search contacts
+message SearchContactsRequest {
+  string query = 1;
+  int32 page_size = 2;
+  string page_token = 3;
+}
+
+// Bulk operations
+message BulkCreateContactsRequest {
+  repeated CreateContactRequest contacts = 1;
+}
+
+message BulkCreateContactsResponse {
+  repeated Contact created_contacts = 1;
+  repeated BulkOperationError errors = 2;
+  int32 success_count = 3;
+  int32 error_count = 4;
+}
+
+message BulkUpdateContactsRequest {
+  repeated UpdateContactRequest updates = 1;
+}
+
+message BulkUpdateContactsResponse {
+  repeated Contact updated_contacts = 1;
+  repeated BulkOperationError errors = 2;
+  int32 success_count = 3;
+  int32 error_count = 4;
+}
+
+message BulkDeleteContactsRequest {
+  repeated string ids = 1;
+}
+
+message BulkDeleteContactsResponse {
+  repeated string deleted_ids = 1;
+  repeated BulkOperationError errors = 2;
+  int32 success_count = 3;
+  int32 error_count = 4;
+}
+
+message BulkOperationError {
+  int32 index = 1;
+  string error_code = 2;
+  string error_message = 3;
+}
+
+// Statistics and analytics
+message ContactStats {
+  int32 total_contacts = 1;
+  int32 contacts_with_phone_numbers = 2;
+  int32 contacts_with_addresses = 3;
+  int32 contacts_with_companies = 4;
+  repeated CompanyCount top_companies = 5;
+  repeated TagCount top_tags = 6;
+  google.protobuf.Timestamp last_updated = 7;
+}
+
+message CompanyCount {
+  string company = 1;
+  int32 count = 2;
+}
+
+message TagCount {
+  string tag = 1;
+  int32 count = 2;
+}
+
+message GetAllTagsResponse {
+  repeated string tags = 1;
+}
+
+// Streaming and real-time events
+message WatchContactsRequest {
+  optional string contact_id = 1; // Watch specific contact, or all if empty
+  repeated ContactEventType event_types = 2; // Filter by event types
+}
+
+message ContactEvent {
+  ContactEventType type = 1;
+  string contact_id = 2;
+  optional Contact contact = 3; // Present for CREATE and UPDATE events
+  google.protobuf.Timestamp timestamp = 4;
+  optional Contact previous_version = 5; // Present for UPDATE events
+}
+
+enum ContactEventType {
+  CONTACT_EVENT_TYPE_UNSPECIFIED = 0;
+  CONTACT_EVENT_TYPE_CREATED = 1;
+  CONTACT_EVENT_TYPE_UPDATED = 2;
+  CONTACT_EVENT_TYPE_DELETED = 3;
+}
+
+// Import streaming
+message ImportContactRequest {
+  oneof request {
+    ImportMetadata metadata = 1;
+    CreateContactRequest contact = 2;
+  }
+}
+
+message ImportMetadata {
+  string import_id = 1;
+  string source = 2;
+  optional bool skip_duplicates = 3;
+}
+
+message ImportContactsResponse {
+  string import_id = 1;
+  int32 total_processed = 2;
+  int32 successful_imports = 3;
+  int32 failed_imports = 4;
+  int32 duplicates_skipped = 5;
+  repeated ImportError errors = 6;
+}
+
+message ImportError {
+  int32 line_number = 1;
+  string error_code = 2;
+  string error_message = 3;
+  optional CreateContactRequest failed_contact = 4;
+}
+
+// Health check service (common gRPC pattern)
+service HealthService {
+  rpc Check(HealthCheckRequest) returns (HealthCheckResponse);
+  rpc Watch(HealthCheckRequest) returns (stream HealthCheckResponse);
+}
+
+message HealthCheckRequest {
+  string service = 1;
+}
+
+message HealthCheckResponse {
+  enum ServingStatus {
+    UNKNOWN = 0;
+    SERVING = 1;
+    NOT_SERVING = 2;
+    SERVICE_UNKNOWN = 3;
+  }
+  ServingStatus status = 1;
+}

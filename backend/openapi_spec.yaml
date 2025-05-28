@@ -1,0 +1,421 @@
+openapi: 3.0.3
+info:
+  title: Contact Management API
+  description: REST API for managing contacts with full CRUD operations
+  version: 1.0.0
+  contact:
+    name: Contact Management Team
+    email: api@contactmanager.com
+servers:
+  - url: https://api.contactmanager.com/v1
+    description: Production server
+  - url: https://staging-api.contactmanager.com/v1
+    description: Staging server
+
+paths:
+  /contacts:
+    get:
+      summary: List all contacts
+      description: Retrieve a paginated list of contacts with optional filtering
+      parameters:
+        - name: page
+          in: query
+          description: Page number for pagination
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Number of contacts per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: search
+          in: query
+          description: Search term to filter contacts by name or email
+          required: false
+          schema:
+            type: string
+        - name: tag
+          in: query
+          description: Filter contacts by tag
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  contacts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Contact'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      summary: Create a new contact
+      description: Add a new contact to the system
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactInput'
+      responses:
+        '201':
+          description: Contact created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Contact with this email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /contacts/{contactId}:
+    get:
+      summary: Get a specific contact
+      description: Retrieve a contact by ID
+      parameters:
+        - name: contactId
+          in: path
+          required: true
+          description: Unique identifier for the contact
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    put:
+      summary: Update a contact
+      description: Update an existing contact by ID
+      parameters:
+        - name: contactId
+          in: path
+          required: true
+          description: Unique identifier for the contact
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactInput'
+      responses:
+        '200':
+          description: Contact updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Email already exists for another contact
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      summary: Delete a contact
+      description: Remove a contact from the system
+      parameters:
+        - name: contactId
+          in: path
+          required: true
+          description: Unique identifier for the contact
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Contact deleted successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /contacts/bulk:
+    post:
+      summary: Create multiple contacts
+      description: Add multiple contacts in a single operation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                contacts:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/ContactInput'
+                  minItems: 1
+                  maxItems: 100
+      responses:
+        '201':
+          description: Contacts created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  created:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Contact'
+                  errors:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        index:
+                          type: integer
+                        error:
+                          type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  schemas:
+    Contact:
+      type: object
+      required:
+        - id
+        - firstName
+        - lastName
+        - email
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the contact
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: Contact's first name
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: Contact's last name
+        email:
+          type: string
+          format: email
+          description: Contact's email address
+        phoneNumber:
+          type: string
+          pattern: '^[\+]?[1-9][\d]{0,15}$'
+          description: Contact's phone number
+        address:
+          $ref: '#/components/schemas/Address'
+        company:
+          type: string
+          maxLength: 100
+          description: Contact's company
+        jobTitle:
+          type: string
+          maxLength: 100
+          description: Contact's job title
+        tags:
+          type: array
+          items:
+            type: string
+          description: Tags associated with the contact
+        notes:
+          type: string
+          maxLength: 1000
+          description: Additional notes about the contact
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the contact was created
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the contact was last updated
+
+    ContactInput:
+      type: object
+      required:
+        - firstName
+        - lastName
+        - email
+      properties:
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 50
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 50
+        email:
+          type: string
+          format: email
+        phoneNumber:
+          type: string
+          pattern: '^[\+]?[1-9][\d]{0,15}$'
+        address:
+          $ref: '#/components/schemas/AddressInput'
+        company:
+          type: string
+          maxLength: 100
+        jobTitle:
+          type: string
+          maxLength: 100
+        tags:
+          type: array
+          items:
+            type: string
+        notes:
+          type: string
+          maxLength: 1000
+
+    Address:
+      type: object
+      properties:
+        street:
+          type: string
+          maxLength: 200
+        city:
+          type: string
+          maxLength: 100
+        state:
+          type: string
+          maxLength: 100
+        postalCode:
+          type: string
+          maxLength: 20
+        country:
+          type: string
+          maxLength: 100
+
+    AddressInput:
+      type: object
+      properties:
+        street:
+          type: string
+          maxLength: 200
+        city:
+          type: string
+          maxLength: 100
+        state:
+          type: string
+          maxLength: 100
+        postalCode:
+          type: string
+          maxLength: 20
+        country:
+          type: string
+          maxLength: 100
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          minimum: 1
+        limit:
+          type: integer
+          minimum: 1
+        total:
+          type: integer
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+        hasNext:
+          type: boolean
+        hasPrevious:
+          type: boolean
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: string
+          description: Additional error details
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Contact not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - BearerAuth: []
